@@ -5,7 +5,7 @@ use Carp;
 use strict;
 use vars '$VERSION';
 
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 
 my %pat = (
@@ -53,7 +53,8 @@ sub import {
     require $file and $class->import if not $INC{$file};
     if ($class ne 'YAPE::Regex') {
       push @{"${class}::ISA"}, 'YAPE::Regex';
-      push @{"${class}::${_}::ISA"}, "YAPE::Regex::$_" for @obj;
+      push @{"${class}::${_}::ISA"},
+        "YAPE::Regex::$_", "${class}::Element" for @obj;
     }
     push @{"${class}::${_}::ISA"}, 'YAPE::Regex::Element' for @obj;
   }
@@ -254,7 +255,7 @@ sub next {
     my $node;
     if (length($match) > 1 and $self->{CONTENT} =~ /^$pat{quant}/) {
       $self->{CONTENT} = chop($match) . $self->{CONTENT};
-      $node = (ref($self) . "::text")->new($match);
+      $node = (ref($self) . "::text")->new($match,"","");
     }
     else {
       my ($quant,$ngreed) = $self->_get_quant;

@@ -1,6 +1,6 @@
 package YAPE::Regex::Element;
 
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 
 sub text { exists $_[0]{TEXT} ? $_[0]{TEXT} : "" }
@@ -96,8 +96,8 @@ sub type { 'slash' }
 package YAPE::Regex::any;
 
 sub new {
-  my ($class,$match,$q,$ng) = @_;
-  bless { TEXT => $match, QUANT => $q, NGREED => $ng }, $class;
+  my ($class,$q,$ng) = @_;
+  bless { TEXT => '.', QUANT => $q, NGREED => $ng }, $class;
 }
 
 sub type { 'any' }
@@ -172,7 +172,7 @@ sub new {
   bless { MODE => \%mode, ON => $add, OFF => $sub }, $class;
 }
 
-sub string { "(?$_[0]{ON}-$_[0]{OFF})" }
+sub string { "(?$_[0]{ON}" . ($_[0]{OFF} && "-$_[0]{OFF}") . ')' }
 sub type { 'flags' }
 
 

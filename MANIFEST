@@ -2,6 +2,7 @@ Changes
 extra/YAPE.pm
 MANIFEST
 Makefile.PL
+README
 Regex.pm
 Regex/Element.pm
 test.pl

@@ -1,5 +1,9 @@
 Revision history for Perl extension YAPE::Regex.
 
+1.01  Tue Feb  6 01:08:00 2001
+	- minor $pat{reg} fix
+	- inheritance fix
+	- added README
 1.00  Mon Feb  5 16:50:00 2001
 	- first version
 
