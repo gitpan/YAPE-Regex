@@ -1,5 +1,8 @@
 Revision history for Perl extension YAPE::Regex.
 
+1.02  Tue Feb  6 10:56:00 2001
+	- Perl 5.6 bug fix regarding qr//
+	- doc patch
 1.01  Tue Feb  6 01:08:00 2001
 	- minor $pat{reg} fix
 	- inheritance fix

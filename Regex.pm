@@ -5,7 +5,7 @@ use Carp;
 use strict;
 use vars '$VERSION';
 
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 
 my %pat = (
@@ -75,7 +75,7 @@ sub new {
     TREE => [],
     TREE_STACK => [],
     CAPTURE => [],
-    CONTENT => $regex,
+    CONTENT => "$regex",
     DEPTH => 0,
   }, $class;
   $self->{CURRENT} = $self->{TREE};
@@ -92,7 +92,7 @@ sub done { $_[0]{STATE} eq 'done' }
 sub root { $_[0]{TREE}[0] }
 sub top { $_[0]{TREE}[0] }
 sub parse { 1 while $_[0]->next }
-sub display { $_[0]->parse; $_[0]{TREE}[0]->fullstring;  }
+sub display { $_[0]->parse; $_[0]{TREE}[0]->fullstring if $_[0]->done;  }
 
 
 sub next {
@@ -633,15 +633,15 @@ constant string or character class.
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 1.00
+=item * C<YAPE::Regex::Explain> 1.01
 
 Presents an explanation of a regular expression, node by node.
 
-=item * C<YAPE::Regex::Reverse> 0.01
+=item * C<YAPE::Regex::Reverse> (Not released)
 
 Reverses the nodes of a regular expression.
 
-=item * C<YAPE::Regex::Wasted> 1.00
+=item * C<YAPE::Regex::Wasted> (Not released)
 
 Points out wasted C</s> and C</m> modifiers, and tries to suggest replacements
 for C<.*?> nodes.

@@ -149,14 +149,14 @@ USAGE
     character class.
 
 EXTENSIONS
-    * `YAPE::Regex::Explain' 1.00
+    * `YAPE::Regex::Explain' 1.01
         Presents an explanation of a regular expression, node by
         node.
 
-    * `YAPE::Regex::Reverse' 0.01
+    * `YAPE::Regex::Reverse' (Not released)
         Reverses the nodes of a regular expression.
 
-    * `YAPE::Regex::Wasted' 1.00
+    * `YAPE::Regex::Wasted' (Not released)
         Points out wasted `/s' and `/m' modifiers, and tries to
         suggest replacements for `.*?' nodes.
 
