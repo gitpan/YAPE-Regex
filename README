@@ -149,7 +149,7 @@ USAGE
     character class.
 
 EXTENSIONS
-    * `YAPE::Regex::Explain' 1.01
+    * `YAPE::Regex::Explain' 1.04
         Presents an explanation of a regular expression, node by
         node.
 

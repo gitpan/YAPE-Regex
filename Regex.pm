@@ -5,7 +5,7 @@ use Carp;
 use strict;
 use vars '$VERSION';
 
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 
 my %pat = (
@@ -38,6 +38,15 @@ my %pat = (
 
   alt => qr{ \| }x,
 );
+
+
+my $ok_cc_REx = qr{
+  \\([0-3][0-7]{2}) |
+  \\x([a-fA-F0-9]{2}) |
+  \\c(.) |
+  \\([nrftbae]) |
+  \\?(.)
+}xs;
 
 
 sub import {
@@ -231,6 +240,7 @@ sub next {
     my ($neg,$match) = ($1,$2);
     my ($quant,$ngreed) = $self->_get_quant;
     return if $quant eq -1;
+    return unless $self->_ok_class($match);
     my $node = (ref($self) . "::class")->new($match,$neg,$quant,$ngreed);
     push @{ $self->{CURRENT} }, $node;
     $self->{STATE} = 'class';
@@ -436,7 +446,7 @@ sub _get_quant {
   if (
     $self->{CONTENT} =~ s/^($pat{Pcomment})?$pat{quant}// or
     (@{ $self->{TREE_STACK} } and $self->{TREE_STACK}[-1]{MODE}{x} and
-      $self->{CONTENT} =~ s/^($pat{Xcomment}\s*)?$pat{quant}//)
+      $self->{CONTENT} =~ s/^($pat{Xcomment}?\s*)?$pat{quant}//)
   ) {
     $quant = $+;
     {
@@ -456,7 +466,7 @@ sub _get_quant {
 
   if (
     (@{ $self->{TREE_STACK} } and $self->{TREE_STACK}[-1]{MODE}{x} and
-      $self->{CONTENT} =~ s/^($pat{Xcomment}\s*)?$pat{ngreed}//) or
+      $self->{CONTENT} =~ s/^($pat{Xcomment}?\s*)?$pat{ngreed}//) or
       $self->{CONTENT} =~ s/^($pat{Pcomment})?$pat{ngreed}//
   ) {
     $ngreed = $+;
@@ -469,8 +479,36 @@ sub _get_quant {
 }
 
 
-1;
+sub _ok_class {
+  my ($self,$class) = @_;
+  while ($class =~ s/^($ok_cc_REx)//) {
+    my $c1 = $1;
+    my $a =
+      defined($2) ? oct($2) :
+      defined($3) ? hex($3) :
+      defined($4) ? ord($4) - 64 :
+      defined($5) ? ord(eval qq{"\\$5"}) :
+                    ord($6);
+    if ($class =~ s/^-($ok_cc_REx)//) {
+      my $c2 = $1;
+      my $b =
+        defined($2) ? oct($2) :
+        defined($3) ? hex($3) :
+        defined($4) ? ord($4) - 64 :
+        defined($5) ? ord(eval qq{"\\$5"}) :
+                      ord($6);
+      if ($a > $b) {
+        $self->{ERROR} = "invalid range [$c1-$c2]";
+        $self->{STATE} = 'error';
+        return;
+      }
+    }
+  }
+  return 1;
+}
 
+
+1;
 
 __END__
 
@@ -633,7 +671,7 @@ constant string or character class.
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 1.01
+=item * C<YAPE::Regex::Explain> 1.04
 
 Presents an explanation of a regular expression, node by node.
 
