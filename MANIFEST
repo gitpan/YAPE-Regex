@@ -6,3 +6,4 @@ README
 Regex.pm
 Regex/Element.pm
 test.pl
+Text/Balanced.pm

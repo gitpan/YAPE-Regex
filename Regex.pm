@@ -1,11 +1,12 @@
 package YAPE::Regex;
 
 use YAPE::Regex::Element;
+use Text::Balanced 'extract_codeblock';
 use Carp;
 use strict;
 use vars '$VERSION';
 
-$VERSION = '1.03';
+$VERSION = '2.00';
 
 
 my %pat = (
@@ -15,11 +16,13 @@ my %pat = (
 
   Pahead => qr{ \( \? ( [=!] ) }x,
   Pbehind => qr{ \( \? < ( [=!] ) }x,
-  Pcond => qr{ \( \? \( (\d+) \) }x,
+  Pcond => qr{ \( \? (?: \( (\d+) \) | (?= \( \? (?: <? [=!] | \?? \{ ) ) ) }x,
   Pcut => qr{ \( \? > }x,
   Pgroup => qr{ \( \? ([isxm]*)-?([ismx]*) : }x,
   Pcapture => qr{ \( (?! \? ) }x,
-    Pclose => qr{ \) }x,
+  Pcode => qr{ \( \? (?= \{ ) }x,
+  Plater => qr{ \( \? \? (?= \{ ) }x,
+  Pclose => qr{ \) }x,
 
   quant => qr{ ( (?: [+*?] | \{ \d+ ,? \d* \} ) ) }x,
   ngreed => qr{ ( \? ) }x,
@@ -54,7 +57,7 @@ sub import {
   my @obj = qw(
     anchor macro oct hex backref ctrl slash any class text alt
     comment whitespace flags lookahead lookbehind conditional
-    group capture close
+    group capture code later close cut
   );
   no strict 'refs';
   for my $class ('YAPE::Regex', @_) {
@@ -78,7 +81,7 @@ sub new {
 
   eval { $regex = qr/$regex/ if ref($regex) ne 'Regexp' };
 
-  $regex = "(?:$regex)" if $@;
+  $regex = "(?-imsx:$regex)" if $@;
 
   my $self = bless {
     TREE => [],
@@ -313,14 +316,40 @@ sub next {
   }
 
   if ($self->{CONTENT} =~ s/^$pat{Pcond}//) {
-    my $node = (ref($self) . "::conditional")->new($1);
-    $node->{MODE} = { %{ $self->{TREE_STACK}[-1]{MODE} } } if
-      @{ $self->{TREE_STACK} };
+    if (defined $1) {
+      my $node = (ref($self) . "::conditional")->new($1);
+      $node->{MODE} = { %{ $self->{TREE_STACK}[-1]{MODE} } } if
+          @{ $self->{TREE_STACK} };
+      push @{ $self->{TREE_STACK} }, $node;
+      push @{ $self->{CURRENT} }, $node;
+      $self->{CURRENT} = $node->{TRUE};
+      $self->{DEPTH}++;
+      $self->{STATE} = "cond($1)";
+      return $node;
+    }
+    else {
+      my $node = (ref($self) . "::conditional")->new;
+      $node->{MODE} = { %{ $self->{TREE_STACK}[-1]{MODE} } } if
+          @{ $self->{TREE_STACK} };
+      push @{ $self->{TREE_STACK} }, $node;
+      push @{ $self->{CURRENT} }, $node;
+      $self->{CURRENT} = $node->{CONTENT};
+      $self->{DEPTH}++;
+      $self->{STATE} = "cond(assert)";
+      return $node;
+    }
+  }
+
+  if ($self->{CONTENT} =~ s/^$pat{Pcut}//) {
+    my ($quant,$ngreed) = $self->_get_quant;
+    return if $quant eq -1;
+    my $node = (ref($self) . "::cut")->new([],$quant,$ngreed);
+    $node->{MODE} = { %{ $self->{TREE_STACK}[-1]{MODE} } };
     push @{ $self->{TREE_STACK} }, $node;
     push @{ $self->{CURRENT} }, $node;
-    $self->{CURRENT} = $node->{TRUE};
+    $self->{CURRENT} = $node->{CONTENT};
     $self->{DEPTH}++;
-    $self->{STATE} = "cond($1)";
+    $self->{STATE} = 'cut';
     return $node;
   }
 
@@ -374,10 +403,43 @@ sub next {
     return $node;
   }
 
+  if ($self->{CONTENT} =~ s/^$pat{Pcode}//) {
+    my ($code,$left) = extract_codeblock($self->{CONTENT}) or do {
+      $self->{ERROR} = 'bad code in (?{ ... }) assertion';
+      $self->{STATE} = 'error';
+      return;
+    };
+    
+    $self->{CONTENT} = $left;
+    my $node = (ref($self) . "::code")->new($code);
+    push @{ $self->{TREE_STACK} }, $node;
+    push @{ $self->{CURRENT} }, $node;
+    $self->{DEPTH}++;
+    $self->{STATE} = 'code';
+    return $node;
+  }
+  
+  if ($self->{CONTENT} =~ s/^$pat{Plater}//) {
+    my ($code,$left) = extract_codeblock($self->{CONTENT}) or do {
+      $self->{ERROR} = 'bad code in (??{ ... }) assertion';
+      $self->{STATE} = 'error';
+      return;
+    };
+    
+    $self->{CONTENT} = $left;
+    my $node = (ref($self) . "::later")->new($code);
+    push @{ $self->{TREE_STACK} }, $node;
+    push @{ $self->{CURRENT} }, $node;
+    $self->{DEPTH}++;
+    $self->{STATE} = 'later';
+    return $node;
+  }
+  
   if ($self->{DEPTH}-- and $self->{CONTENT} =~ s/^$pat{Pclose}//) {
     my ($quant,$ngreed) = $self->_get_quant;
     return if $quant eq -1;
     my $node = (ref($self) . "::close")->new;
+    
     $self->{CURRENT} = pop @{ $self->{TREE_STACK} };
     $self->{CURRENT}{QUANT} = $quant;
     $self->{CURRENT}{NGREED} = $ngreed;
@@ -414,9 +476,18 @@ sub next {
     }
   }
 
-    $self->{CURRENT} = $self->{TREE_STACK}[-1];
-    $self->{CURRENT} = $self->{CURRENT}{CONTENT};
-
+    if (
+      @{ $self->{TREE_STACK} } and
+      $self->{TREE_STACK}[-1]->type eq 'cond' and
+      $self->{TREE_STACK}[-1]{OPTS} == 1
+    ) {
+      $self->{CURRENT} = $self->{TREE_STACK}[-1]{TRUE};
+    }
+    else {
+      $self->{CURRENT} = $self->{TREE_STACK}[-1];
+      $self->{CURRENT} = $self->{CURRENT}{CONTENT};
+    }
+    
     $self->{STATE} = 'close';
     return $node;
   }
@@ -626,15 +697,14 @@ Returns the root node of the tree structure.
 
 Returns the current state of the parser.  It is one of the following values:
 C<alt>, C<anchor>, C<any>, C<backref>, C<capture(N)>, C<class>, C<close>,
-C<comment>, C<cond(TYPE)>, C<ctrl>, C<done>, C<error>, C<flags>, C<group>,
-C<hex>, C<macro>, C<lookahead(neg|pos)>, C<lookbehind(neg|pos)>, C<oct>,
-C<slash>, and C<text>.
+C<code>, C<comment>, C<cond(TYPE)>, C<ctrl>, C<cut>, C<done>, C<error>, C<flags>,
+C<group>, C<hex>, C<later>, C<lookahead(neg|pos)>, C<lookbehind(neg|pos)>,
+C<macro>, C<oct>, C<slash>, and C<text>.
 
 For C<capture(N)>, I<N> will be the number the captured pattern represents.
 
 For C<cond(TYPE)>, I<TYPE> will either be a number representing the
-back-reference that the conditional depends on, or one of the strings
-C<lookahead(neg)>, C<lookahead(pos)>, C<lookbehind(neg)>, or C<lookbehind(pos)>.
+back-reference that the conditional depends on, or the string C<assert>.
 
 For C<lookahead> and C<lookbehind>, one of C<neg> and C<pos> will be there,
 depending on the type of assertion.
@@ -671,7 +741,7 @@ constant string or character class.
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 1.04
+=item * C<YAPE::Regex::Explain> 2.00
 
 Presents an explanation of a regular expression, node by node.
 
@@ -698,10 +768,6 @@ This is a listing of things to add to future versions of this module.
 
 Open to suggestions.
 
-=item * Add support for C<(?(?=...))> and the like
-
-Currently, only C<(?(NUMBER))> is supported for conditionals.
-
 =back
 
 =head2 Internals
@@ -722,7 +788,7 @@ Following is a list of known or reported bugs.
 
 =over 4
 
-=item * C<(?{ ... })> and C<(??{ ... })> not supported
+=item * NONE!
 
 =back
 
@@ -733,6 +799,7 @@ Visit C<YAPE>'s web site at F<http://www.pobox.com/~japhy/YAPE/>.
 =head1 SEE ALSO
 
 The C<YAPE::Regex::Element> documentation, for information on the node classes.
+Also, C<Text::Balanced>, Damian Conway's excellent module, used for 
 
 =head1 AUTHOR
 

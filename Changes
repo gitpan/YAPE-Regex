@@ -1,5 +1,9 @@
 Revision history for Perl extension YAPE::Regex.
 
+2.00  Wed Feb  7 13:00:00 2001
+	- Text::Balanced used -- (?{...}) and (??{...}) supported
+	- (?(...)...|...) is now fully supported
+	- added (?>...) support (it accidentally wasn't there)
 1.03  Tue Feb  6 17:54:00 2001
 	- fixed character class handling
 1.02  Tue Feb  6 10:56:00 2001

@@ -1,6 +1,6 @@
 package YAPE::Regex::Element;
 
-$VERSION = '1.01';
+$VERSION = '2.00';
 
 
 sub text { exists $_[0]{TEXT} ? $_[0]{TEXT} : "" }
@@ -177,6 +177,28 @@ sub type { 'flags' }
 
 
 
+package YAPE::Regex::cut;
+
+sub new {
+  bless {
+    CONTENT => $_[1] || [],
+    QUANT => $_[2] || "",
+    NGREED => $_[3] || "",
+  }, $_[0]
+}
+
+sub fullstring {
+  join "",
+    $_[0]->string,
+    map($_->fullstring, @{ $_[0]{CONTENT} }),
+    ")$_[0]{QUANT}$_[0]{NGREED}"
+}
+
+sub string { '(?>' }
+sub type { 'cut' }
+
+
+
 package YAPE::Regex::lookahead;
 
 sub new { bless { POS => $_[1], CONTENT => $_[2] || [] }, $_[0] }
@@ -216,7 +238,7 @@ package YAPE::Regex::conditional;
 sub new {
   bless {
     OPTS => 1,
-    BACKREF => $_[1],
+    CONTENT => $_[1] || [],
     TRUE => $_[2] || [],
     FALSE => $_[3] || [],
     QUANT => $_[4] || "",
@@ -234,8 +256,13 @@ sub fullstring {
     ")$_[0]{QUANT}$_[0]{NGREED}";
 }
 
-sub string { "(?($_[0]{BACKREF})" }
-sub backref { $_[0]{BACKREF} }
+sub string {
+  '(?' . (ref $_[0]{CONTENT} ?
+    $_[0]{CONTENT}[0]->fullstring :
+    "($_[0]{CONTENT})"
+  )
+}
+sub backref { $_[0]{CONTENT} }
 sub type { 'cond' }
 
 
@@ -284,6 +311,22 @@ sub fullstring {
 
 sub string { '(' }
 sub type { 'capture' }
+
+
+
+package YAPE::Regex::code;
+
+sub new { bless { CONTENT => $_[1], QUANT => "", NGREED => "", }, $_[0] }
+sub text { "(?$_[0]{CONTENT})" }
+sub type { 'code' }
+
+
+
+package YAPE::Regex::later;
+
+sub new { bless { CONTENT => $_[1], QUANT => "", NGREED => "", }, $_[0] }
+sub text { "(??$_[0]{CONTENT})" }
+sub type { 'later' }
 
 
 
@@ -709,6 +752,27 @@ Returns the string C<flags>.
 
 =back
 
+=head2 Methods for C<YAPE::Regex::cut>
+
+This class represents the cut assertion.  Objects have the following methods:
+
+=over 4
+
+=item * C<my $look = YAPE::Regex::cut-E<gt>new(\@nodes);>
+
+Creates a C<YAPE::Regex::cut> object.  Takes one arguments:  a reference to an
+array of objects to be contained in the cut.
+
+  my $REx = YAPE::Regex::class->new('aeiouy','','+');
+  my $look = YAPE::Regex::cut->new(0,[$REx]);
+  # /(?>[aeiouy]+)/
+
+=item * C<my $type = $cut-E<gt>type;>
+
+Returns the string C<cut>.
+
+=back
+
 =head2 Methods for C<YAPE::Regex::lookahead>
 
 This class represents lookaheads.  Objects have the following methods:
@@ -856,9 +920,49 @@ Returns the string C<capture>.
 
 =back
 
-=head2 Methods for C<YAPE::Regex::capture>
+=head2 Methods for C<YAPE::Regex::code>
 
-This class represents hexadecimal escapes.  Objects have the following methods:
+This class represents code blocks.  Objects have the following methods:
+
+=over 4
+
+=item * C<my $code = YAPE::Regex::code-E<gt>new($block);>
+
+Creates a C<YAPE::Regex::code> object.  Takes one arguments:  a string holding
+a block of code.
+
+  my $code = YAPE::Regex::code->new(q({ push @poss, $1 }));
+  # /(?{ push @poss, $1 })/
+
+=item * C<my $type = $code-E<gt>type;>
+
+Returns the string C<code>.
+
+=back
+
+=head2 Methods for C<YAPE::Regex::later>
+
+This class represents closed parentheses.  Objects have the following methods:
+
+=over 4
+
+=item * C<my $later = YAPE::Regex::later-E<gt>new($block);>
+
+Creates a C<YAPE::Regex::later> object.  Takes one arguments:  a string holding
+a block of code.
+
+  my $later = YAPE::Regex::later->new(q({ push @poss, $1 }));
+  # /(?{{ push @poss, $1 }})/
+
+=item * C<my $type = $later-E<gt>type;>
+
+Returns the string C<later>.
+
+=back
+
+=head2 Methods for C<YAPE::Regex::close>
+
+This class represents closed parentheses.  Objects have the following methods:
 
 =over 4
 
@@ -887,10 +991,6 @@ This is a listing of things to add to future versions of this module.
 
 The POSIX and Unicode character class extensions are not yet supported.
 
-=item * More conditional support
-
-Allow for lookaheads and lookbehinds in the conditional assertion.
-
 =back
 
 =head1 BUGS
@@ -898,8 +998,6 @@ Allow for lookaheads and lookbehinds in the conditional assertion.
 Following is a list of known or reported bugs.
 
 =over 4
-
-=item * C<(?{ ... })> and C<(??{ ... })> aren't (and won't be) supported
 
 =item * This documentation might be incomplete.
 

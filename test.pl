@@ -105,3 +105,66 @@ $parser->parse;
 $output = $parser->error;
 __EOC__
 
+# TEST 7 -- (?{ ... }) and (??{ ... })
+this (?{ $x++ }) (??{ $y-- }) that
+__EOI__
+(?-imsx:this (?{ $x++ }) (??{ $y-- }) that)
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 8 -- (?(?=...)...)
+foo (?(?=bar)b)
+__EOI__
+(?-imsx:foo (?(?=bar)b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 9 -- (?(?!...)...)
+foo (?(?!bar)b)
+__EOI__
+(?-imsx:foo (?(?!bar)b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 10 -- (?(?<=...)...)
+foo (?(?<=bar)b)
+__EOI__
+(?-imsx:foo (?(?<=bar)b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 11 -- (?(?<!...)...)
+foo (?(?<!bar)b)
+__EOI__
+(?-imsx:foo (?(?<!bar)b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 12 -- (?(?{...})...)
+foo (?(?{bar})b)
+__EOI__
+(?-imsx:foo (?(?{bar})b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+
+# TEST 13 -- (?(??{...})...)
+foo (?(??{bar})b)
+__EOI__
+(?-imsx:foo (?(??{bar})b))
+__EOO__
+my $parser = YAPE::Regex->new($input);
+$output = $parser->display;
+__EOC__
+

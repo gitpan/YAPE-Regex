@@ -105,18 +105,17 @@ USAGE
     * `my $state = $p->state;'
         Returns the current state of the parser. It is one of the
         following values: `alt', `anchor', `any', `backref',
-        `capture(N)', `class', `close', `comment', `cond(TYPE)',
-        `ctrl', `done', `error', `flags', `group', `hex', `macro',
-        `lookahead(neg|pos)', `lookbehind(neg|pos)', `oct', `slash',
-        and `text'.
+        `capture(N)', `class', `close', `code', `comment',
+        `cond(TYPE)', `ctrl', `cut', `done', `error', `flags',
+        `group', `hex', `later', `lookahead(neg|pos)',
+        `lookbehind(neg|pos)', `macro', `oct', `slash', and `text'.
 
         For `capture(N)', *N* will be the number the captured
         pattern represents.
 
         For `cond(TYPE)', *TYPE* will either be a number
         representing the back-reference that the conditional depends
-        on, or one of the strings `lookahead(neg)',
-        `lookahead(pos)', `lookbehind(neg)', or `lookbehind(pos)'.
+        on, or the string `assert'.
 
         For `lookahead' and `lookbehind', one of `neg' and `pos'
         will be there, depending on the type of assertion.
@@ -149,7 +148,7 @@ USAGE
     character class.
 
 EXTENSIONS
-    * `YAPE::Regex::Explain' 1.04
+    * `YAPE::Regex::Explain' 2.00
         Presents an explanation of a regular expression, node by
         node.
 
@@ -169,9 +168,6 @@ TO DO
     * Create a robust `extract' method
         Open to suggestions.
 
-    * Add support for `(?(?=...))' and the like
-        Currently, only `(?(NUMBER))' is supported for conditionals.
-
   Internals
 
     * Add Perl 5.6 character class support
@@ -185,14 +181,15 @@ BUGS
 
   Pending
 
-    * `(?{ ... })' and `(??{ ... })' not supported
+    * NONE!
 SUPPORT
         Visit `YAPE''s web site at
         http://www.pobox.com/~japhy/YAPE/.
 
 SEE ALSO
         The `YAPE::Regex::Element' documentation, for information on
-        the node classes.
+        the node classes. Also, `Text::Balanced', Damian Conway's
+        excellent module, used for
 
 AUTHOR
           Jeff "japhy" Pinyan
