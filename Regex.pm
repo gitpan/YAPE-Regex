@@ -6,7 +6,27 @@ use Carp;
 use strict;
 use vars '$VERSION';
 
-$VERSION = '2.00';
+
+$VERSION = '3.00';
+
+
+my $valid_POSIX = qr{
+  alpha | alnum | ascii | cntrl | digit | graph |
+  lower | print | punct | space | upper | word | xdigit
+}x;
+
+
+my $ok_cc_REx = qr{
+  \\([0-3][0-7]{2}) |                       # octal escapes
+  \\x([a-fA-F0-9]{2}|\{[a-fA-F0-9]+\}) |    # hex escapes
+  \\c(.) |                                  # control characters
+  \\([nrftbae]) |                           # known \X sequences
+  \\N\{([^\}]+)\} |                         # named characters
+  (\\[wWdDsS]) |                            # regex macros
+  \\[Pp]([A-Za-z]|\{[a-zA-Z]+\}) |          # utf8 macros
+  \[:\^?([a-zA-Z]+):\]  |                   # POSIX macros
+  \\?(.)                                    # anything else
+}xs;
 
 
 my %pat = (
@@ -30,12 +50,15 @@ my %pat = (
   anchor => qr{ ( \\ [ABbGZz] | [\^\$] ) }x,
   macro => qr{ \\ ( [dDwWsS] ) }x,
   oct => qr{ \\ ( [0-3] [0-7] [0-7] ) }x,
-  hex => qr{ \\ x ( [a-fA-F0-9] [a-fA-F0-9] ) }x,
+  hex => qr{ \\ x ( [a-fA-F0-9]{2} ) }x,
+  utf8hex => qr{ \\ x \{ ( [a-fA-F0-9]+ ) \} }x,
   backref => qr{ \\ ( [1-9] \d* ) }x,
   ctrl => qr{ \\ c ( . ) }x,
+  named => qr{ \\ N \{ ( [^\}]+ ) \} }x,
+  Cchar => qr{ \\ C }x,
   slash => qr{ \\ ( . ) }x,
   any => qr{ \. }x,
-  class => qr{ \[ ( \^? ) ( \]? [^]\\]* (?: \\. [^]\\]* )* ) \] }x,
+  class => qr{ \\ ([Pp]) ( [A-Za-z] | \{ [a-zA-Z]+ \} ) | \[ ( \^? ) ( \]? [^][\\]* (?: (?: \[:\w+:\] | \[ (?!:) | \\. ) [^][\\]* )* ) \] }x,
   nws => qr{ ( (?: [^\s^\$|\\+*?()\[.]+ | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
   reg => qr{ ( (?: [^^\$|\\+*?()\[.\{] | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
 
@@ -43,21 +66,12 @@ my %pat = (
 );
 
 
-my $ok_cc_REx = qr{
-  \\([0-3][0-7]{2}) |
-  \\x([a-fA-F0-9]{2}) |
-  \\c(.) |
-  \\([nrftbae]) |
-  \\?(.)
-}xs;
-
-
 sub import {
   shift;
   my @obj = qw(
-    anchor macro oct hex backref ctrl slash any class text alt
-    comment whitespace flags lookahead lookbehind conditional
-    group capture code later close cut
+    anchor macro oct hex utf8hex backref ctrl named Cchar slash
+    any class text alt comment whitespace flags lookahead lookbehind
+    conditional group capture code later close cut
   );
   no strict 'refs';
   for my $class ('YAPE::Regex', @_) {
@@ -79,7 +93,7 @@ sub new {
   croak "no regex given to $class->new"
     if not defined $regex or length($regex) == 0;
 
-  eval { $regex = qr/$regex/ if ref($regex) ne 'Regexp' };
+  eval { local $^W; $regex = qr/$regex/ } if ref($regex) ne 'Regexp';
 
   $regex = "(?-imsx:$regex)" if $@;
 
@@ -178,6 +192,15 @@ sub next {
     return $node;
   }
 
+  if ($self->{CONTENT} =~ s/^$pat{utf8hex}//) {
+    my $match = $1;
+    my ($quant,$ngreed) = $self->_get_quant;
+    my $node = (ref($self) . "::utf8hex")->new($match,$quant,$ngreed);
+    push @{ $self->{CURRENT} }, $node;
+    $self->{STATE} = 'utf8hex';
+    return $node;
+  }
+
   if ($self->{CONTENT} =~ s/^$pat{backref}//) {
     my $match = $1;
     my ($quant,$ngreed) = $self->_get_quant;
@@ -220,6 +243,38 @@ sub next {
     return $node;
   }
 
+  if ($self->{CONTENT} =~ s/^$pat{named}//) {
+    my $match = $1;
+    my ($quant,$ngreed) = $self->_get_quant;
+    return if $quant eq -1;
+    my $node = (ref($self) . "::named")->new($match,$quant,$ngreed);
+    push @{ $self->{CURRENT} }, $node;
+    $self->{STATE} = 'named';
+    return $node;
+  }
+
+  if ($self->{CONTENT} =~ s/^$pat{Cchar}//) {
+    my ($quant,$ngreed) = $self->_get_quant;
+    return if $quant eq -1;
+    my $node = (ref($self) . "::Cchar")->new($quant,$ngreed);
+    push @{ $self->{CURRENT} }, $node;
+    $self->{STATE} = 'Cchar';
+    return $node;
+  }
+
+  if ($self->{CONTENT} =~ s/^$pat{class}//) {
+    my ($neg,$match) = defined($1) ? ($1,$2) : ($3,$4);
+    $match =~ tr/{}//d if defined $1;
+        
+    my ($quant,$ngreed) = $self->_get_quant;
+    return if $quant eq -1;
+    return unless $self->_ok_class($match);
+    my $node = (ref($self) . "::class")->new($match,$neg,$quant,$ngreed);
+    push @{ $self->{CURRENT} }, $node;
+    $self->{STATE} = 'class';
+    return $node;
+  }
+
   if ($self->{CONTENT} =~ s/^$pat{slash}//) {
     my $match = $1;
     my ($quant,$ngreed) = $self->_get_quant;
@@ -236,17 +291,6 @@ sub next {
     my $node = (ref($self) . "::any")->new($quant,$ngreed);
     push @{ $self->{CURRENT} }, $node;
     $self->{STATE} = 'any';
-    return $node;
-  }
-
-  if ($self->{CONTENT} =~ s/^$pat{class}//) {
-    my ($neg,$match) = ($1,$2);
-    my ($quant,$ngreed) = $self->_get_quant;
-    return if $quant eq -1;
-    return unless $self->_ok_class($match);
-    my $node = (ref($self) . "::class")->new($match,$neg,$quant,$ngreed);
-    push @{ $self->{CURRENT} }, $node;
-    $self->{STATE} = 'class';
     return $node;
   }
 
@@ -552,29 +596,61 @@ sub _get_quant {
 
 sub _ok_class {
   my ($self,$class) = @_;
+
   while ($class =~ s/^($ok_cc_REx)//) {
     my $c1 = $1;
+
     my $a =
       defined($2) ? oct($2) :
-      defined($3) ? hex($3) :
+      defined($3) ? hex(($3 =~ /(\w+)/)[0]) :
       defined($4) ? ord($4) - 64 :
       defined($5) ? ord(eval qq{"\\$5"}) :
-                    ord($6);
+      defined($6) ? ord(eval qq{use charnames ':full'; "\\N{$6}"}) :
+      defined($10) ? ord($10) :
+                    -1;
+
+    my ($utf8,$posix) = ($8,$9);
+    
+    $utf8 =~ tr/{}//d if defined $utf8;
+
+    if (defined($posix) and $posix !~ $valid_POSIX) {
+      $self->{ERROR} = "unknown POSIX class $c1";
+      $self->{STATE} = 'error';
+      return;
+    }
+
     if ($class =~ s/^-($ok_cc_REx)//) {
       my $c2 = $1;
       my $b =
         defined($2) ? oct($2) :
-        defined($3) ? hex($3) :
+        defined($3) ? hex(($3 =~ /(\w+)/)[0]) :
         defined($4) ? ord($4) - 64 :
         defined($5) ? ord(eval qq{"\\$5"}) :
-                      ord($6);
-      if ($a > $b) {
-        $self->{ERROR} = "invalid range [$c1-$c2]";
+        defined($6) ? ord(eval qq{use charnames ':full'; "\\N{$6}"}) :
+        defined($10) ? ord($10) :
+                      -1;
+
+      my ($utf8,$posix) = ($8,$9);
+      
+      $utf8 =~ tr/{}//d if defined $utf8;
+  
+      if (defined($posix) and $posix !~ $valid_POSIX) {
+        $self->{ERROR} = "unknown POSIX class $c2";
+        $self->{STATE} = 'error';
+        return;
+      }
+  
+      if ($a == -1 or $b == -1) {
+        carp qq{false [] range "$c1-$c2"} if $^W;
+      }
+      elsif ($a > $b) {
+        $self->{ERROR} = "invalid [] range $c1-$c2";
         $self->{STATE} = 'error';
         return;
       }
     }
   }
+
   return 1;
 }
 
@@ -641,6 +717,7 @@ class).
   package MyExt::Mod;
   use YAPE::Regex 'MyExt::Mod';
   
+  # does the work of:
   # @MyExt::Mod::ISA = 'YAPE::Regex'
   # @MyExt::Mod::text::ISA = 'YAPE::Regex::text'
   # ...
@@ -696,10 +773,10 @@ Returns the root node of the tree structure.
 =item * C<my $state = $p-E<gt>state;>
 
 Returns the current state of the parser.  It is one of the following values:
-C<alt>, C<anchor>, C<any>, C<backref>, C<capture(N)>, C<class>, C<close>,
+C<alt>, C<anchor>, C<any>, C<backref>, C<capture(N)>, C<Cchar>, C<class>, C<close>,
 C<code>, C<comment>, C<cond(TYPE)>, C<ctrl>, C<cut>, C<done>, C<error>, C<flags>,
 C<group>, C<hex>, C<later>, C<lookahead(neg|pos)>, C<lookbehind(neg|pos)>,
-C<macro>, C<oct>, C<slash>, and C<text>.
+C<macro>, C<named>, C<oct>, C<slash>, C<text>, and C<utf8hex>.
 
 For C<capture(N)>, I<N> will be the number the captured pattern represents.
 
@@ -732,27 +809,17 @@ how the API should look, in addition to what should be proffered).  Preliminary
 ideas include extraction keywords like the output of B<-Dr> (or the C<re>
 module's C<debug> option).
 
-The C<YAPE::Regex::Wasted> extension module, which suggests that regexes like
-C</(.*?):/> be changed to C</([^:]*):/> (and their ilk), could make use of an
-extraction technique that lets the user detect a node of C<.*?> followed by a
-constant string or character class.
-
 =head1 EXTENSIONS
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 2.00
+=item * C<YAPE::Regex::Explain> 3.00
 
 Presents an explanation of a regular expression, node by node.
 
 =item * C<YAPE::Regex::Reverse> (Not released)
 
 Reverses the nodes of a regular expression.
-
-=item * C<YAPE::Regex::Wasted> (Not released)
-
-Points out wasted C</s> and C</m> modifiers, and tries to suggest replacements
-for C<.*?> nodes.
 
 =back
 
@@ -770,16 +837,6 @@ Open to suggestions.
 
 =back
 
-=head2 Internals
-
-=over 4
-
-=item * Add Perl 5.6 character class support
-
-The new character class syntaces, C<[:posix:]> and C<\p{UniCode}>, aren't yet
-supported.  These might be C<class> objects, or have their own classes
-(C<posix_class> and C<unicode_class>).
-
 =head1 BUGS
 
 Following is a list of known or reported bugs.
@@ -788,7 +845,11 @@ Following is a list of known or reported bugs.
 
 =over 4
 
-=item * NONE!
+=item * C<use charnames ':full'>
+
+To understand C<\N{...}> properly, you must be using 5.6.0 or higher.  However,
+the parser only knows how to resolve full names (those made using C<use charnames
+':full'>).  There might be an option in the future to specify a class name.
 
 =back
 
@@ -799,7 +860,8 @@ Visit C<YAPE>'s web site at F<http://www.pobox.com/~japhy/YAPE/>.
 =head1 SEE ALSO
 
 The C<YAPE::Regex::Element> documentation, for information on the node classes.
-Also, C<Text::Balanced>, Damian Conway's excellent module, used for 
+Also, C<Text::Balanced>, Damian Conway's excellent module, used for the matching
+of C<(?{ ... })> and C<(??{ ... })> blocks.
 
 =head1 AUTHOR
 

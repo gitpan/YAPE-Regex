@@ -53,6 +53,7 @@ USAGE
           package MyExt::Mod;
           use YAPE::Regex 'MyExt::Mod';
           
+          # does the work of:
           # @MyExt::Mod::ISA = 'YAPE::Regex'
           # @MyExt::Mod::text::ISA = 'YAPE::Regex::text'
           # ...
@@ -105,10 +106,11 @@ USAGE
     * `my $state = $p->state;'
         Returns the current state of the parser. It is one of the
         following values: `alt', `anchor', `any', `backref',
-        `capture(N)', `class', `close', `code', `comment',
+        `capture(N)', `Cchar', `class', `close', `code', `comment',
         `cond(TYPE)', `ctrl', `cut', `done', `error', `flags',
         `group', `hex', `later', `lookahead(neg|pos)',
-        `lookbehind(neg|pos)', `macro', `oct', `slash', and `text'.
+        `lookbehind(neg|pos)', `macro', `named', `oct', `slash',
+        `text', and `utf8hex'.
 
         For `capture(N)', *N* will be the number the captured
         pattern represents.
@@ -141,23 +143,13 @@ USAGE
     keywords like the output of -Dr (or the `re' module's `debug'
     option).
 
-    The `YAPE::Regex::Wasted' extension module, which suggests that
-    regexes like `/(.*?):/' be changed to `/([^:]*):/' (and their
-    ilk), could make use of an extraction technique that lets the
-    user detect a node of `.*?' followed by a constant string or
-    character class.
-
 EXTENSIONS
-    * `YAPE::Regex::Explain' 2.00
+    * `YAPE::Regex::Explain' 3.00
         Presents an explanation of a regular expression, node by
         node.
 
     * `YAPE::Regex::Reverse' (Not released)
         Reverses the nodes of a regular expression.
-
-    * `YAPE::Regex::Wasted' (Not released)
-        Points out wasted `/s' and `/m' modifiers, and tries to
-        suggest replacements for `.*?' nodes.
 
 TO DO
     This is a listing of things to add to future versions of this
@@ -168,32 +160,29 @@ TO DO
     * Create a robust `extract' method
         Open to suggestions.
 
-  Internals
-
-    * Add Perl 5.6 character class support
-        The new character class syntaces, `[:posix:]' and
-        `\p{UniCode}', aren't yet supported. These might be `class'
-        objects, or have their own classes (`posix_class' and
-        `unicode_class').
-
 BUGS
-        Following is a list of known or reported bugs.
+    Following is a list of known or reported bugs.
 
   Pending
 
-    * NONE!
+    * `use charnames ':full''
+        To understand `\N{...}' properly, you must be using 5.6.0 or
+        higher. However, the parser only knows how to resolve full
+        names (those made using `use charnames ':full''). There
+        might be an option in the future to specify a class name.
+
 SUPPORT
-        Visit `YAPE''s web site at
-        http://www.pobox.com/~japhy/YAPE/.
+    Visit `YAPE''s web site at http://www.pobox.com/~japhy/YAPE/.
 
 SEE ALSO
-        The `YAPE::Regex::Element' documentation, for information on
-        the node classes. Also, `Text::Balanced', Damian Conway's
-        excellent module, used for
+    The `YAPE::Regex::Element' documentation, for information on the
+    node classes. Also, `Text::Balanced', Damian Conway's excellent
+    module, used for the matching of `(?{ ... })' and `(??{ ... })'
+    blocks.
 
 AUTHOR
-          Jeff "japhy" Pinyan
-          CPAN ID: PINYAN
-          japhy@pobox.com
-          http://www.pobox.com/~japhy/
+      Jeff "japhy" Pinyan
+      CPAN ID: PINYAN
+      japhy@pobox.com
+      http://www.pobox.com/~japhy/
 

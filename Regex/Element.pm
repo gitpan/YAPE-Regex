@@ -1,6 +1,6 @@
 package YAPE::Regex::Element;
 
-$VERSION = '2.00';
+$VERSION = '3.00';
 
 
 sub text { exists $_[0]{TEXT} ? $_[0]{TEXT} : "" }
@@ -81,6 +81,30 @@ sub type { 'ctrl' }
 
 
 
+package YAPE::Regex::named;
+
+sub new {
+  my ($class,$match,$q,$ng) = @_;
+  bless { TEXT => $match, QUANT => $q, NGREED => $ng }, $class;
+}
+
+sub text { "\\N{$_[0]{TEXT}}" }
+sub type { 'named' }
+
+
+
+package YAPE::Regex::Cchar;
+
+sub new {
+  my ($class,$q,$ng) = @_;
+  bless { QUANT => $q, NGREED => $ng }, $class;
+}
+
+sub text { '\C' }
+sub type { 'Cchar' }
+
+
+
 package YAPE::Regex::slash;
 
 sub new {
@@ -111,7 +135,11 @@ sub new {
   bless { TEXT => $match, NEG => $neg, QUANT => $q, NGREED => $ng }, $class;
 }
 
-sub text { "[$_[0]{NEG}$_[0]{TEXT}]" }
+sub text {
+    $_[0]{NEG} =~ /[pP]/ ?
+      "\\$_[0]{NEG}\{$_[0]{TEXT}\}" :
+      "[$_[0]{NEG}$_[0]{TEXT}]"
+}
 sub type { 'class' }
 
 
@@ -498,6 +526,33 @@ Returns the string C<hex>.
 
 =back
 
+=head2 Methods for C<YAPE::Regex::utf8hex>
+
+This class represents UTF hexadecimal escapes.  Objects have the following
+methods:
+
+=over 4
+
+=item * C<my $hex = YAPE::Regex::utf8hex-E<gt>new($type,$q,$ng);>
+
+Creates a C<YAPE::Regex::utf8hex> object.  Takes three arguments:  the
+hexadecimal number (as a string), the quantity, and the non-greedy flag.
+
+  my $utf8hex = YAPE::Regex::utf8hex->new('beef','{0,4}');
+  # /\x{beef}{2,}/
+
+=item * C<my $text = $utf8hex-E<gt>text;>
+
+Returns the hexadecimal escape.
+
+  print $utf8hex->text;  # '\x{beef}'
+
+=item * C<my $type = $utf8hex-E<gt>type;>
+
+Returns the string C<utf8hex>.
+
+=back
+
 =head2 Methods for C<YAPE::Regex::backref>
 
 This class represents back-references.  Objects have the following methods:
@@ -543,11 +598,63 @@ character, the quantity, and the non-greedy flag.
 
 Returns the control character escape.
 
-  print $hex->text;  # '\cM'
+  print $ctrl->text;  # '\cM'
 
 =item * C<my $type = $ctrl-E<gt>type;>
 
 Returns the string C<ctrl>.
+
+=back
+
+=head2 Methods for C<YAPE::Regex::named>
+
+This class represents named characters.  Objects have the following methods:
+
+=over 4
+
+=item * C<my $ctrl = YAPE::Regex::named-E<gt>new($type,$q,$ng);>
+
+Creates a C<YAPE::Regex::named> object.  Takes three arguments:  the name of the
+character, the quantity, and the non-greedy flag.
+
+  my $named = YAPE::Regex::named->new('GREEK SMALL LETTER BETA');
+  # /\N{GREEK SMALL LETTER BETA}/
+
+=item * C<my $text = $named-E<gt>text;>
+
+Returns the character escape text.
+
+  print $named->text;  # '\N{GREEK SMALL LETTER BETA}'
+
+=item * C<my $type = $named-E<gt>type;>
+
+Returns the string C<named>.
+
+=back
+
+=head2 Methods for C<YAPE::Regex::Cchar>
+
+This class represents C characters.  Objects have the following methods:
+
+=over 4
+
+=item * C<my $ctrl = YAPE::Regex::Cchar-E<gt>new($q,$ng);>
+
+Creates a C<YAPE::Regex::Cchar> object.  Takes two arguments:  the quantity and
+the non-greedy flag.
+
+  my $named = YAPE::Regex::Char->new(2);
+  # /\C{2}/
+
+=item * C<my $text = $Cchar-E<gt>text;>
+
+Returns the escape sequence.
+
+  print $Cchar->text;  # '\C'
+
+=item * C<my $type = $Cchar-E<gt>type;>
+
+Returns the string C<Cchar>.
 
 =back
 
@@ -987,9 +1094,7 @@ This is a listing of things to add to future versions of this module.
 
 =over 4
 
-=item * Perl 5.6 extended character classes
-
-The POSIX and Unicode character class extensions are not yet supported.
+=item * None!
 
 =back
 
