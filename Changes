@@ -1,5 +1,8 @@
 Revision history for Perl extension YAPE::Regex.
 
+3.01  Mon May  7 13:00:00 2001
+	- fixed test.pl 1..6 to 1..13
+        - removed Text::Balanced from distro (but you still need it!)
 3.00  Wed May  2 19:54:00 2001
 	- full 5.6 regex support!
 2.00  Wed Feb  7 13:00:00 2001

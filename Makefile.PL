@@ -4,4 +4,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'YAPE::Regex',
     'VERSION_FROM' => 'Regex.pm', # finds $VERSION
+    'PREREQ_PM' => {
+        'Text::Balanced' => 0,
+    },
 );

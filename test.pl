@@ -8,7 +8,7 @@
 
 my $loaded;
 
-BEGIN { $| = 1; print "1..6\n"; $^W = 1 }
+BEGIN { $| = 1; print "1..13\n"; $^W = 1 }
 END { print "not ok 1\n" unless $loaded; }
 use YAPE::Regex;
 use strict;

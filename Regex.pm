@@ -7,7 +7,7 @@ use strict;
 use vars '$VERSION';
 
 
-$VERSION = '3.00';
+$VERSION = '3.01';
 
 
 my $valid_POSIX = qr{
@@ -813,7 +813,7 @@ module's C<debug> option).
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 3.00
+=item * C<YAPE::Regex::Explain> 3.011
 
 Presents an explanation of a regular expression, node by node.
 
