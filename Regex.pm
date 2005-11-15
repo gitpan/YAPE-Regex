@@ -7,7 +7,7 @@ use strict;
 use vars '$VERSION';
 
 
-$VERSION = '3.01';
+$VERSION = '3.02';
 
 
 my $valid_POSIX = qr{
@@ -59,7 +59,7 @@ my %pat = (
   slash => qr{ \\ ( . ) }x,
   any => qr{ \. }x,
   class => qr{ \\ ([Pp]) ( [A-Za-z] | \{ [a-zA-Z]+ \} ) | \[ ( \^? ) ( \]? [^][\\]* (?: (?: \[:\w+:\] | \[ (?!:) | \\. ) [^][\\]* )* ) \] }x,
-  nws => qr{ ( (?: [^\s^\$|\\+*?()\[.]+ | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
+  nws => qr{ ( (?: [^\s^\$|\\+*?()\[.\{]+ | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
   reg => qr{ ( (?: [^^\$|\\+*?()\[.\{] | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
 
   alt => qr{ \| }x,
@@ -485,8 +485,8 @@ sub next {
     my $node = (ref($self) . "::close")->new;
     
     $self->{CURRENT} = pop @{ $self->{TREE_STACK} };
-    $self->{CURRENT}{QUANT} = $quant;
-    $self->{CURRENT}{NGREED} = $ngreed;
+    $node->{QUANT} = $self->{CURRENT}{QUANT} = $quant;
+    $node->{NGREED} = $self->{CURRENT}{NGREED} = $ngreed;
 
   # this code is special to YAPE::Regex::Reverse
   if ($self->isa('YAPE::Regex::Reverse')) {
