@@ -7,7 +7,7 @@ use strict;
 use vars '$VERSION';
 
 
-$VERSION = '3.02';
+$VERSION = '3.03';
 
 
 my $valid_POSIX = qr{
@@ -300,8 +300,18 @@ sub next {
     $self->{CONTENT} =~ s/^$pat{nws}//
   ) {
     my $match = $1;
-    my ($quant,$ngreed) = $self->_get_quant;
-    my $node = (ref($self) . "::text")->new($match,$quant,$ngreed);
+    my $node;
+
+    if (length($match) > 1 and $self->{CONTENT} =~ /^(?:$pat{Pcomment}|$pat{Xcomment}|\s+)*$pat{quant}/) {
+      $self->{CONTENT} = chop($match) . $self->{CONTENT};
+      $node = (ref($self) . "::text")->new($match,"","");
+    }
+    else {
+      my ($quant,$ngreed) = $self->_get_quant;
+      return if $quant eq -1;
+      $node = (ref($self) . "::text")->new($match,$quant,$ngreed);
+    }
+
     push @{ $self->{CURRENT} }, $node;
     $self->{STATE} = 'text';
     return $node;
@@ -853,10 +863,6 @@ the parser only knows how to resolve full names (those made using C<use charname
 
 =back
 
-=head1 SUPPORT
-
-Visit C<YAPE>'s web site at F<http://www.pobox.com/~japhy/YAPE/>.
-
 =head1 SEE ALSO
 
 The C<YAPE::Regex::Element> documentation, for information on the node classes.
@@ -867,7 +873,6 @@ of C<(?{ ... })> and C<(??{ ... })> blocks.
 
   Jeff "japhy" Pinyan
   CPAN ID: PINYAN
-  japhy@pobox.com
-  http://www.pobox.com/~japhy/
+  PINYAN@cpan.org
 
 =cut

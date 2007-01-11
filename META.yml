@@ -1,11 +1,11 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         YAPE-Regex
-version:      3.02
+version:      3.03
 version_from: Regex.pm
 installdirs:  site
 requires:
     Text::Balanced:                0
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+generated_by: ExtUtils::MakeMaker version 6.17
