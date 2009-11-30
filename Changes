@@ -1,5 +1,7 @@
 Revision history for Perl extension YAPE::Regex.
 
+3.04  Mon Nov 30 13:41:40 2009
+	- fixed error in 'slash' regex (Regex.pm line 59)
 3.03  Thu Jan 11 08:50:00 2007
 	- fixed quantifier bug when /x is on ('ab+' was improperly parsed)
 3.01  Mon May  7 13:00:00 2001

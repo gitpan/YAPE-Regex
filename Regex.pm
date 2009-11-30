@@ -7,7 +7,7 @@ use strict;
 use vars '$VERSION';
 
 
-$VERSION = '3.03';
+$VERSION = '3.04';
 
 
 my $valid_POSIX = qr{
@@ -56,7 +56,7 @@ my %pat = (
   ctrl => qr{ \\ c ( . ) }x,
   named => qr{ \\ N \{ ( [^\}]+ ) \} }x,
   Cchar => qr{ \\ C }x,
-  slash => qr{ \\ ( . ) }x,
+  slash => qr{ \\ ( . ) }xs,
   any => qr{ \. }x,
   class => qr{ \\ ([Pp]) ( [A-Za-z] | \{ [a-zA-Z]+ \} ) | \[ ( \^? ) ( \]? [^][\\]* (?: (?: \[:\w+:\] | \[ (?!:) | \\. ) [^][\\]* )* ) \] }x,
   nws => qr{ ( (?: [^\s^\$|\\+*?()\[.\{]+ | \{ (?! \d+ ,? \d* \} ) )+ ) }x,
