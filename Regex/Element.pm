@@ -1,6 +1,6 @@
 package YAPE::Regex::Element;
 
-$VERSION = '3.00';
+$VERSION = '4.00';
 
 
 sub text { exists $_[0]{TEXT} ? $_[0]{TEXT} : "" }
@@ -367,11 +367,14 @@ sub type { 'close' }
 
 1;
 
-__END__
 
 =head1 NAME
 
 YAPE::Regex::Element - sub-classes for YAPE::Regex elements
+
+=head1 VERSION
+
+This document refers to YAPE::Regex::Element version 4.00.
 
 =head1 SYNOPSIS
 
@@ -1118,9 +1121,13 @@ The C<YAPE::Regex> documentation, for information on the main class.
 
 =head1 AUTHOR
 
-  Jeff "japhy" Pinyan
-  CPAN ID: PINYAN
-  japhy@pobox.com
-  http://www.pobox.com/~japhy/
+The original author is Jeff "japhy" Pinyan (CPAN ID: PINYAN).
+
+Gene Sullivan (gsullivan@cpan.org) is a co-maintainer.
+
+=head1 LICENSE
+
+This module is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.  See L<perlartistic>.
 
 =cut

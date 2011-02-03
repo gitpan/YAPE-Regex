@@ -7,7 +7,7 @@ use strict;
 use vars '$VERSION';
 
 
-$VERSION = '3.04';
+$VERSION = '4.00';
 
 
 my $valid_POSIX = qr{
@@ -97,6 +97,23 @@ sub new {
 
   $regex = "(?-imsx:$regex)" if $@;
 
+  # Make the qr stringification introduced in 5.13.6 look like the old
+  # qr stringification.
+  if ($regex =~ / ^ \( \? \^ ([imsx]+) (: .*) $ /x) {
+    my $switches = $1;
+    my $rest     = $2;
+    my $inverted = invert($switches);
+    if (length $inverted) {
+      $regex = "(?$switches-$inverted$rest";
+    }
+    else {
+      $regex = "(?imsx$rest";
+    }
+  }
+  elsif ($regex =~ / ^ \( \? \^ : /x) {
+    $regex =~ s/\^/-imsx/;
+  }
+
   my $self = bless {
     TREE => [],
     TREE_STACK => [],
@@ -107,6 +124,16 @@ sub new {
   $self->{CURRENT} = $self->{TREE};
 
   return $self;
+}
+
+
+sub invert {
+    # Given an input string which looks like modifiers (ismx),
+    # return the inverse string.
+    # For example, if the input is 'ix', return 'ms'.
+    my %mods = map { $_ => 1 } qw(i m s x);
+    delete $mods{$_} for (split //, shift);
+    return join '', keys %mods;
 }
 
 
@@ -667,11 +694,14 @@ sub _ok_class {
 
 1;
 
-__END__
 
 =head1 NAME
 
 YAPE::Regex - Yet Another Parser/Extractor for Regular Expressions
+
+=head1 VERSION
+
+This document refers to YAPE::Regex version 4.00.
 
 =head1 SYNOPSIS
 
@@ -823,7 +853,7 @@ module's C<debug> option).
 
 =over 4
 
-=item * C<YAPE::Regex::Explain> 3.011
+=item * C<YAPE::Regex::Explain>
 
 Presents an explanation of a regular expression, node by node.
 
@@ -871,8 +901,13 @@ of C<(?{ ... })> and C<(??{ ... })> blocks.
 
 =head1 AUTHOR
 
-  Jeff "japhy" Pinyan
-  CPAN ID: PINYAN
-  PINYAN@cpan.org
+The original author is Jeff "japhy" Pinyan (CPAN ID: PINYAN).
+
+Gene Sullivan (gsullivan@cpan.org) is a co-maintainer.
+
+=head1 LICENSE
+
+This module is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.  See L<perlartistic>.
 
 =cut
